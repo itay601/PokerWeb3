@@ -1,19 +1,38 @@
 # Node.js dependencies
-node_modules/
+node_modules/*
 .env
-myenv/
+myenv/*
 
 # Hardhat files
-/cache/
-artifacts/
+cache/
+__pychache__/
+artifacts/*
 
 # TypeChain files
-/typechain/
+typechain/
 typechain-types/
 
 # Solidity coverage files
-/coverage/
+coverage/
 coverage.json
 
 # Hardhat Ignition default folder for local deployments
 ignition/deployments/chain-31337/
+
+
+# Ignore everything
+#*
+
+# But don't ignore directories, so we can recurse into them
+#!*/
+
+# Don't ignore .gitignore and your script files
+!.gitignore
+!*.sh
+!*.py
+!*.js
+# Add more script extensions as needed
+
+# Optionally, ignore specific directories even if they contain scripts
+# node_modules/
+# venv/
