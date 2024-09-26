@@ -6,6 +6,7 @@ contract Poker {
         address payable playerAddress;
         bool isParticipating;
         uint256 chips;
+        uint8[] hand; // Player's hand (card identifiers)
     }
 
     struct Game {
@@ -15,7 +16,13 @@ contract Poker {
         uint256 buyIn;
         Player[] players;
         bool isActive;
+        uint256 currentBet;
+        uint8[] deck; // Card deck
+        uint8[] communityCards; // Community cards
+        GameState currentState;
     }
+
+    enum GameState { PreFlop, Flop, Turn, River, End }
 
     mapping(uint256 => Game) public games;
     uint256 public gameCount;
@@ -24,6 +31,8 @@ contract Poker {
     event PlayerJoined(uint256 indexed gameId, address indexed player);
     event GameStarted(uint256 indexed gameId);
     event GameEnded(uint256 indexed gameId, address winner);
+    event CardsDealt(uint256 indexed gameId, uint8[] communityCards);
+    event PlayerAction(uint256 indexed gameId, address indexed player, string action, uint256 amount);
 
     modifier onlyDealer(uint256 _gameId) {
         require(msg.sender == games[_gameId].dealer, "Not the dealer");
@@ -42,6 +51,8 @@ contract Poker {
         newGame.dealer = msg.sender;
         newGame.buyIn = _buyIn;
         newGame.isActive = true;
+        newGame.currentBet = 0;
+        newGame.currentState = GameState.PreFlop;
 
         emit GameCreated(gameCount, msg.sender, _buyIn);
     }
@@ -53,7 +64,8 @@ contract Poker {
         game.players.push(Player({
             playerAddress: payable(msg.sender),
             isParticipating: true,
-            chips: msg.value
+            chips: msg.value,
+            hand: new uint8[](0) // Initialize empty hand
         }));
         
         game.pot += msg.value;
@@ -62,8 +74,65 @@ contract Poker {
     }
 
     function startGame(uint256 _gameId) external onlyDealer(_gameId) gameActive(_gameId) {
-        // Placeholder for starting game logic
+        shuffleAndDeal(_gameId);
         emit GameStarted(_gameId);
+    }
+
+    function shuffleAndDeal(uint256 _gameId) internal {
+        Game storage game = games[_gameId];
+        game.deck = createDeck();
+        // Shuffle logic (omitted for brevity)
+        
+        // Deal cards to players
+        for (uint256 i = 0; i < game.players.length; i++) {
+            // Deal two cards to each player (omitted for brevity)
+            // e.g., game.players[i].hand.push(dealCard());
+        }
+        
+        emit CardsDealt(_gameId, game.communityCards);
+    }
+
+    function createDeck() internal pure returns (uint8[] memory) {
+        uint8[] memory deck = new uint8[](52);
+        for (uint8 i = 0; i < 52; i++) {
+            deck[i] = i; // Assigning identifiers to cards
+        }
+        return deck;
+    }
+
+    function bet(uint256 _gameId, uint256 _amount) external gameActive(_gameId) {
+        Game storage game = games[_gameId];
+        require(_amount > game.currentBet, "Bet must be higher than current bet");
+        // Check if player is participating and has enough chips (omitted for brevity)
+
+        // Update pot and player chips (omitted for brevity)
+
+        game.currentBet = _amount;
+        emit PlayerAction(_gameId, msg.sender, "Bet", _amount);
+    }
+
+    function call(uint256 _gameId) external gameActive(_gameId) {
+        Game storage game = games[_gameId];
+        // Logic for calling the current bet (omitted for brevity)
+        
+        emit PlayerAction(_gameId, msg.sender, "Call", game.currentBet);
+    }
+
+    function Raise(uint256 _gameId, uint256 _amount) external gameActive(_gameId) {
+        Game storage game = games[_gameId];
+        require(_amount > game.currentBet, "Raise must be higher than current bet");
+        
+        // Update pot and player chips (omitted for brevity)
+
+        game.currentBet = _amount;
+        emit PlayerAction(_gameId, msg.sender, "Raise", _amount);
+    }
+
+    function fold(uint256 _gameId) external gameActive(_gameId) {
+        Game storage game = games[_gameId];
+        // Logic for folding (omitted for brevity)
+
+        emit PlayerAction(_gameId, msg.sender, "Fold", 0);
     }
 
     function endGame(uint256 _gameId, address payable _winner) external onlyDealer(_gameId) gameActive(_gameId) {

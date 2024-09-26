@@ -1,7 +1,7 @@
 # Node.js dependencies
 node_modules/*
 .env
-myenv/*
+compiled_code.json
 
 # Hardhat files
 cache/
