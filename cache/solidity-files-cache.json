@@ -38,8 +38,8 @@
       ]
     },
     "/home/itay601/repos/PokerWeb3/contracts/PokerContract.sol": {
-      "lastModificationDate": 1727290669042,
-      "contentHash": "0db2ef927186d3eacaed111128149547",
+      "lastModificationDate": 1727879452443,
+      "contentHash": "b224ecb34c75372b7d85c32f4f1de033",
       "sourceName": "contracts/PokerContract.sol",
       "solcConfig": {
         "version": "0.8.27",
@@ -71,6 +71,42 @@
       ],
       "artifacts": [
         "Poker"
+      ]
+    },
+    "/home/itay601/repos/PokerWeb3/contracts/PokerContract2.sol": {
+      "lastModificationDate": 1727865636961,
+      "contentHash": "fc09e542d1ead9af7e5aa4b5ec78ae30",
+      "sourceName": "contracts/PokerContract2.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.27"
+      ],
+      "artifacts": [
+        "Poker2"
       ]
     }
   }
