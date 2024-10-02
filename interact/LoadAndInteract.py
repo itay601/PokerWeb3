@@ -1,93 +1,123 @@
 from web3 import Web3
 import json
-from ContractReadCompile import compile_Contarct  # Fixed typo in import
+from ContractReadCompile import compile_Contract 
+from dotenv import load_dotenv
+import os
+import time
+from web3.exceptions import ContractLogicError
 
 # Initialize Web3
 w3 = Web3(Web3.HTTPProvider('http://127.0.0.1:8545'))
 assert w3.is_connected(), "Failed to connect to Ethereum network"
 
 # Load the contract ABI and bytecode
-compiled_contract = compile_Contarct()  # Fixed function name
+compiled_contract = compile_Contract()
 contract_abi = compiled_contract['contracts']['PokerContract.sol']['Poker']['abi']
 contract_bytecode = compiled_contract['contracts']['PokerContract.sol']['Poker']['evm']['bytecode']['object']
 
-#print(contract_abi)
-
 # Contract address (make sure this is the correct deployed address)
-contract_address = Web3.to_checksum_address('0x5fbdb2315678afecb367f032d93f642f64180aa3')
-poker_contract = w3.eth.contract(address=contract_address, abi=contract_abi)
+contract_address = Web3.to_checksum_address('0x5FbDB2315678afecb367f032d93F642f64180aa3')
+contract = w3.eth.contract(address=contract_address, abi=contract_abi)
 
-# Set the default account
-w3.eth.default_account = w3.eth.accounts[1]
+# Accounts
+dealer_account = w3.eth.accounts[0]
+player_accounts = [w3.eth.accounts[1], w3.eth.accounts[2], w3.eth.accounts[3]]
 
-def get_gas_price():
-    return w3.eth.gas_price
+# Set up transaction parameters
+def get_tx_params(account):
+    return {
+        'from': account,
+        'gas': 3000000,
+        'gasPrice': w3.to_wei('20', 'gwei')
+    }
 
-def handle_transaction(func, *args, account=None):
-    try:
-        if account:
-            tx = func(*args).build_transaction({
-                'from': account,
-                'nonce': w3.eth.get_transaction_count(account),
-                'gas': 2000000,
-                'gasPrice': get_gas_price()
-            })
-            signed_tx = w3.eth.account.sign_transaction(tx, private_key='your_private_key_here')
-            tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-        else:
-            tx_hash = func(*args).transact()
-        
-        w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_hash
-    except Exception as e:
-        print(f"An error occurred: {e}")
+# Create a game
+def create_game(buy_in_ether):
+    buy_in_wei = w3.to_wei(buy_in_ether, 'ether')
+    tx_hash = contract.functions.createGame(buy_in_wei).transact(get_tx_params(dealer_account))
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    print("Game created:", receipt.transactionHash.hex())
+    return receipt.transactionHash
 
-def create_game(buy_in):
-    handle_transaction(poker_contract.functions.createGame, buy_in)
-    print("Game created!")
+# Join a game
+def join_game(game_id, buy_in_ether, player_account):
+    buy_in_wei = w3.to_wei(buy_in_ether, 'ether')
+    tx_params = get_tx_params(player_account)
+    tx_params['value'] = buy_in_wei
+    tx_hash = contract.functions.joinGame(game_id).transact(tx_params)
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    print(f"Player {player_account} joined game:", receipt.transactionHash.hex())
 
-def join_game(game_id):
-    buy_in = poker_contract.functions.games(game_id).call()[2]
-    handle_transaction(poker_contract.functions.joinGame, game_id, {'value': buy_in})
-    print("Joined game!")
-
+# Start a game
 def start_game(game_id):
-    handle_transaction(poker_contract.functions.startGame, game_id)
-    print("Game started!")
+    tx_hash = contract.functions.startGame(game_id).transact(get_tx_params(dealer_account))
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    print("Game started:", receipt.transactionHash.hex())
 
-def bet(game_id, amount):
-    handle_transaction(poker_contract.functions.bet, game_id, amount)
-    print(f"Bet placed: {amount}")
+# Player actions
+def bet(game_id, amount, player_account):
+    tx_hash = contract.functions.bet(game_id, amount).transact(get_tx_params(player_account))
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    print(f"Player {player_account} bet {amount}:", receipt.transactionHash.hex())
 
-def call(game_id):
-    handle_transaction(poker_contract.functions.call, game_id)
-    print("Called the bet!")
+def call(game_id, player_account):
+    tx_hash = contract.functions.call(game_id).transact(get_tx_params(player_account))
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    print(f"Player {player_account} called:", receipt.transactionHash.hex())
 
-def raise_bet(game_id, amount):
-    account = w3.eth.accounts[0]
-    handle_transaction(poker_contract.functions.Raise, game_id, amount, account=account)  
-    print(f"Raised the bet to: {amount}")
+def fold(game_id, player_account):
+    tx_hash = contract.functions.fold(game_id).transact(get_tx_params(player_account))
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    print(f"Player {player_account} folded:", receipt.transactionHash.hex())
 
-def fold(game_id):
-    handle_transaction(poker_contract.functions.fold, game_id)
-    print("Folded!")
 
-def end_game(game_id, winner_address):
-    handle_transaction(poker_contract.functions.endGame, game_id, winner_address)
-    print("Game ended!")
-
-# Example usage
-if __name__ == "__main__":
-    buy_in_amount = w3.to_wei(0.1, 'ether')
-    create_game(buy_in_amount)
     
-    game_id = 1  # Replace with the actual game ID
+# Reveal community cards
+def reveal_community_cards(game_id, player_account):
+    try:
+        #ommunity_cards = contract.functions.getCommunityCards(game_id).call()
+        #game_count = contract.functions.gameCount().call()
+        game_details = contract.functions.getCurrentState(game_id).call()
+        print(f"reciept: {game_details}")
+    except Exception as e:
+        print("Error:", e)
 
-    # Assume game ID is 1 for demonstration
-    join_game(game_id)
+
+
+
+# Simulate a full game
+def simulate_full_game():
+    game_id = 1
+    buy_in = 1  # 1 Ether
+
+    # Create and join game
+    create_game(buy_in)
+    for player in player_accounts:
+        join_game(game_id, buy_in, player)
+
     start_game(game_id)
-    bet(game_id, w3.to_wei(0.1, 'ether'))  # Changed initial bet amount
-    call(game_id)
-    raise_bet(game_id, w3.to_wei(0.2, 'ether'))
-    fold(game_id)
-    end_game(game_id, w3.eth.accounts[1])  # Replace with actual winner's address
+
+    # Simulate betting rounds
+    stages = ["PreFlop", "Flop", "Turn", "River"]
+    for stage in stages:
+        print(f"\n--- {stage} ---")
+        for i, player in enumerate(player_accounts):
+            time.sleep(2)  # Wait for the contract to process the round
+            action = i % 3  # 0: bet, 1: call, 2: fold
+            if action == 0:
+                bet(game_id, w3.to_wei(0.1, 'ether'), player)
+            elif action == 1:
+                call(game_id, player)
+            else:
+                call(game_id, player)
+                
+
+        #reveal_community_cards(game_id , player)  # Reveal community cards after each stage
+        time.sleep(2)  # Wait for the contract to process the round
+
+    #reveal_all_hands(game_id)  # Reveal all hands at the end
+    print("\nGame ended")
+    #a =w3.eth.accounts[1].get
+
+# Run the simulation
+simulate_full_game()

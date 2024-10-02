@@ -1,27 +1,13 @@
-// Import the Hardhat library
-const hre = require("hardhat");
+const { ethers } = require("hardhat");
 
 async function main() {
-    // Compile the contract (for edge case)
-    await hre.run('compile');
+    const Poker = await ethers.getContractFactory("Poker");
+    const contract = await Poker.deploy();
 
-    // Get the ContractFactory and Signers
-    const Poker = await hre.ethers.getContractFactory("Poker");
-    const [deployer] = await hre.ethers.getSigners();
-
-    console.log("Deploying contracts with the account:", deployer.address);
-
-    // Deploy the contract
-    const pokerContract = await Poker.deploy();
-    pokerContract.deployed;
-
-    console.log("Poker contract deployed to: ", pokerContract.address);
+    console.log("contract deployed to:", await contract.getAddress());
 }
 
-// Execute the main function and handle errors
-main()
-    .then(() => process.exit(0))
-    .catch((error) => {
-        console.error(error);
-        process.exit(1);
-    });
+main().catch((error) => {
+    console.error("Error:", error);
+    process.exitCode = 1;
+});
