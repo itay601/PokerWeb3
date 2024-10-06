@@ -20,7 +20,6 @@ def compile_Contract():
             }
         }
     },solc_version = "0.8.27")
-    #print(compile_solidity)
     return compile_solidity
 
 
@@ -41,8 +40,3 @@ def read_contract():
             return contract_contents
     except Exception as e:
         print(f'Error reading file: {e}')   
-
-
-
-#a = convert_contract_to_json()
-#print(a)        
