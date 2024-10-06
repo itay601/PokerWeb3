@@ -47,7 +47,7 @@ contract Poker {
     event CardsDealt(uint256 indexed gameId);
     event PlayerAction(uint256 indexed gameId, address indexed player, string action, uint256 amount);
     event GameStateChanged(uint256 indexed gameId, GameState newState);
-    event GameEnded(uint256 indexed gameId, address winner);
+    event GameEnded(uint256 indexed gameId, address winner, uint256 winningAmount);
     event RoundEnded(uint256 indexed gameId, GameState newState);
     event CommunityCardsRevealed(uint256 indexed gameId, uint8[] cards);
     event PlayerHandRevealed(uint256 indexed gameId, address indexed player, uint8[] hand);
@@ -85,10 +85,20 @@ contract Poker {
         locked = false;
     }
     
-    function getCurrentState(uint256 _gameId) public view returns (GameState currentState) {
-        return games[_gameId].currentState;
+    function getCommunityCards(uint256 _gameId) public view returns (uint8[] memory) {
+        return games[_gameId].communityCards;
     }
 
+    function getPlayerCards(uint256 _gameId, address _playerAddress) public view returns (uint8[] memory) {
+        Game storage game = games[_gameId];
+        for (uint256 i = 0; i < game.players.length; i++) {
+            if (game.players[i].playerAddress == _playerAddress) {
+                require(game.players[i].isParticipating, "Player is not participating in the game");
+                return game.players[i].hand;
+            }
+        }
+        revert("Player not found in the game");
+    }
 
     function createGame(uint256 _buyIn) external {
         require(_buyIn > 0, "Buy-in must be greater than zero");
@@ -107,7 +117,7 @@ contract Poker {
 
     function joinGame(uint256 _gameId) external payable {
         Game storage game = games[_gameId];
-        require(msg.value == game.buyIn, "Incorrect buy-in amount");
+        require(msg.value >= game.buyIn, "Incorrect buy-in amount");
         require(game.players.length < MAX_PLAYERS, "Game is full");
 
         game.players.push(Player({
@@ -123,7 +133,7 @@ contract Poker {
         emit PlayerJoined(_gameId, msg.sender);
     }
 
-    function startGame(uint256 _gameId) external onlyDealer(_gameId) gameActive(_gameId) {
+    function startGame(uint256 _gameId) external  gameActive(_gameId) {
         Game storage game = games[_gameId];
         require(game.players.length >= 2, "Not enough players to start the game");
         shuffleAndDeal(_gameId);
@@ -274,11 +284,11 @@ contract Poker {
             uint256 winnings = game.pot;
             game.pot = 0;
             
-            // Use transfer instead of call
             winner.transfer(winnings);
+            emit GameEnded(_gameId, winner, winnings);
+        } else {
+            emit GameEnded(_gameId, address(0), 0); // No winner (e.g., all folded)
         }
-
-        emit GameEnded(_gameId, winner);
     }
 
     function shuffleAndDeal(uint256 _gameId) internal {
