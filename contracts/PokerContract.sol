@@ -133,7 +133,7 @@ contract Poker {
         emit PlayerJoined(_gameId, msg.sender);
     }
 
-    function startGame(uint256 _gameId) external  gameActive(_gameId) {
+    function startGame(uint256 _gameId) external onlyDealer(_gameId) {
         Game storage game = games[_gameId];
         require(game.players.length >= 2, "Not enough players to start the game");
         shuffleAndDeal(_gameId);
@@ -356,8 +356,12 @@ contract Poker {
         return false;
     }
 
-    function determineWinner(uint256 _gameId) internal view returns (address payable) {
-        Game storage game = games[_gameId];
+    // New constants for card representation
+    uint8 constant RANK_MASK = 0x0F;
+    uint8 constant SUIT_MASK = 0xF0;
+
+    function determineWinner(uint256 gameId) internal view returns (address payable) {
+        Game storage game = games[gameId];
         address payable winner;
         uint256 highestRank = 0;
 
@@ -371,12 +375,11 @@ contract Poker {
                 }
             }
         }
-        
+
         return winner;
     }
-    
+
     function evaluateHand(uint8[] memory hand, uint8[] memory communityCards) internal pure returns (uint256) {
-        // Combine hand and community cards
         uint8[] memory fullHand = new uint8[](hand.length + communityCards.length);
         for (uint8 i = 0; i < hand.length; i++) {
             fullHand[i] = hand[i];
@@ -385,21 +388,121 @@ contract Poker {
             fullHand[hand.length + j] = communityCards[j];
         }
 
-        // Evaluate the best hand and return a rank
-        // This is a placeholder; you should implement the actual poker hand ranking logic
-        return simpleHandRank(fullHand);
+        return calculateHandRank(fullHand);
     }
 
-    function simpleHandRank(uint8[] memory cards) internal pure returns (uint256) {
-        // Example ranking logic (simplified)
-        // Assign a rank based on the highest card
-        uint8 highestCard = 0;
-        for (uint8 i = 0; i < cards.length; i++) {
-            if (cards[i] > highestCard) {
-                highestCard = cards[i];
+    function calculateHandRank(uint8[] memory cards) internal pure returns (uint256) {
+        // Sort the cards by rank
+        for (uint i = 0; i < cards.length - 1; i++) {
+            for (uint j = 0; j < cards.length - i - 1; j++) {
+                if ((cards[j] & RANK_MASK) > (cards[j+1] & RANK_MASK)) {
+                    (cards[j], cards[j+1]) = (cards[j+1], cards[j]);
+                }
             }
         }
-        return uint256(highestCard); // Simplistic rank based on highest card
+
+        bool flush = isFlush(cards);
+        bool straight = isStraight(cards);
+
+        if (flush && straight) {
+            if ((cards[4] & RANK_MASK) == 14) { // Ace-high straight flush (Royal Flush)
+                return 10 << 20;
+            }
+            return 9 << 20 | (cards[4] & RANK_MASK); // Straight Flush
+        }
+
+        if (isQuads(cards)) {
+            return 8 << 20 | ((cards[2] & RANK_MASK) << 4) | (cards[4] & RANK_MASK);
+        }
+
+        if (isFullHouse(cards)) {
+            return 7 << 20 | ((cards[2] & RANK_MASK) << 4) | (cards[4] & RANK_MASK);
+        }
+
+        if (flush) {
+            return 6 << 20 | (cards[4] & RANK_MASK);
+        }
+
+        if (straight) {
+            return 5 << 20 | (cards[4] & RANK_MASK);
+        }
+
+        if (isTrips(cards)) {
+            return 4 << 20 | ((cards[2] & RANK_MASK) << 8) | ((cards[4] & RANK_MASK) << 4) | (cards[3] & RANK_MASK);
+        }
+
+        if (isTwoPair(cards)) {
+            return 3 << 20 | ((cards[3] & RANK_MASK) << 8) | ((cards[1] & RANK_MASK) << 4) | (cards[4] & RANK_MASK);
+        }
+
+        if (isPair(cards)) {
+            uint8 pairRank = 0;
+            for (uint i = 0; i < 4; i++) {
+                if ((cards[i] & RANK_MASK) == (cards[i+1] & RANK_MASK)) {
+                    pairRank = cards[i] & RANK_MASK;
+                    break;
+                }
+            }
+            return 2 << 20 | (pairRank << 16) | ((cards[4] & RANK_MASK) << 8) | ((cards[3] & RANK_MASK) << 4) | (cards[2] & RANK_MASK);
+        }
+
+        // High card
+        return 1 << 20 | ((cards[4] & RANK_MASK) << 16) | ((cards[3] & RANK_MASK) << 12) | ((cards[2] & RANK_MASK) << 8) | ((cards[1] & RANK_MASK) << 4) | (cards[0] & RANK_MASK);
+    }
+
+    function isFlush(uint8[] memory cards) internal pure returns (bool) {
+        uint8 suit = cards[0] & SUIT_MASK;
+        for (uint i = 1; i < 5; i++) {
+            if ((cards[i] & SUIT_MASK) != suit) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function isStraight(uint8[] memory cards) internal pure returns (bool) {
+        uint8 prevRank = cards[0] & RANK_MASK;
+        for (uint i = 1; i < 5; i++) {
+            uint8 currentRank = cards[i] & RANK_MASK;
+            if (currentRank != prevRank + 1) {
+                if (i == 4 && prevRank == 5 && (cards[0] & RANK_MASK) == 14) {
+                    return true; // Ace-low straight (A, 2, 3, 4, 5)
+                }
+                return false;
+            }
+            prevRank = currentRank;
+        }
+        return true;
+    }
+
+    function isQuads(uint8[] memory cards) internal pure returns (bool) {
+        return ((cards[0] & RANK_MASK) == (cards[3] & RANK_MASK)) || ((cards[1] & RANK_MASK) == (cards[4] & RANK_MASK));
+    }
+
+    function isFullHouse(uint8[] memory cards) internal pure returns (bool) {
+        return (((cards[0] & RANK_MASK) == (cards[2] & RANK_MASK)) && ((cards[3] & RANK_MASK) == (cards[4] & RANK_MASK))) ||
+               (((cards[0] & RANK_MASK) == (cards[1] & RANK_MASK)) && ((cards[2] & RANK_MASK) == (cards[4] & RANK_MASK)));
+    }
+
+    function isTrips(uint8[] memory cards) internal pure returns (bool) {
+        return ((cards[0] & RANK_MASK) == (cards[2] & RANK_MASK)) || 
+               ((cards[1] & RANK_MASK) == (cards[3] & RANK_MASK)) || 
+               ((cards[2] & RANK_MASK) == (cards[4] & RANK_MASK));
+    }
+
+    function isTwoPair(uint8[] memory cards) internal pure returns (bool) {
+        return ((cards[0] & RANK_MASK) == (cards[1] & RANK_MASK) && (cards[2] & RANK_MASK) == (cards[3] & RANK_MASK)) ||
+               ((cards[0] & RANK_MASK) == (cards[1] & RANK_MASK) && (cards[3] & RANK_MASK) == (cards[4] & RANK_MASK)) ||
+               ((cards[1] & RANK_MASK) == (cards[2] & RANK_MASK) && (cards[3] & RANK_MASK) == (cards[4] & RANK_MASK));
+    }
+
+    function isPair(uint8[] memory cards) internal pure returns (bool) {
+        for (uint i = 0; i < 4; i++) {
+            if ((cards[i] & RANK_MASK) == (cards[i+1] & RANK_MASK)) {
+                return true;
+            }
+        }
+        return false;
     }
      
     function revealCommunityCards(uint256 _gameId, uint8 count) internal {
