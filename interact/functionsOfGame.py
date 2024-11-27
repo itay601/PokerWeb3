@@ -108,7 +108,7 @@ def get_game_ended_event(contract, game_id):
 
 # Simulate a full game
 def simulate_full_game():
-    game_id = 3
+    game_id = 2
     buy_in = 1.0 # 1 Ether
 
     # Create and join game

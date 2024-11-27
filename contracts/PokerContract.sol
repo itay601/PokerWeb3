@@ -133,7 +133,7 @@ contract Poker {
         emit PlayerJoined(_gameId, msg.sender);
     }
 
-    function startGame(uint256 _gameId) external onlyDealer(_gameId) {
+    function startGame(uint256 _gameId) external  {
         Game storage game = games[_gameId];
         require(game.players.length >= 2, "Not enough players to start the game");
         shuffleAndDeal(_gameId);
@@ -145,7 +145,7 @@ contract Poker {
         emit GameStateChanged(_gameId, GameState.PreFlop);
     }
 
-    function bet(uint256 _gameId, uint256 _amount) external gameActive(_gameId) onlyParticipating(_gameId) {
+    function bet(uint256 _gameId, uint256 _amount) external onlyCurrentPlayer(_gameId) gameActive(_gameId) onlyParticipating(_gameId) {
         Game storage game = games[_gameId];
         require(block.timestamp < game.roundEndTime, "Round has ended");
         require(_amount > game.currentBet, "Bet must be higher than current bet");
@@ -162,7 +162,7 @@ contract Poker {
         nextPlayer(_gameId);
     }
 
-    function call(uint256 _gameId) external gameActive(_gameId) onlyParticipating(_gameId) {
+    function call(uint256 _gameId) external onlyCurrentPlayer(_gameId) gameActive(_gameId) onlyParticipating(_gameId) {
         Game storage game = games[_gameId];
         require(block.timestamp < game.roundEndTime, "Round has ended");
         Player storage player = getPlayer(_gameId, msg.sender);
@@ -178,24 +178,9 @@ contract Poker {
         nextPlayer(_gameId);
     }
 
-    function raise_(uint256 _gameId, uint256 _amount) external gameActive(_gameId) onlyParticipating(_gameId) {
-        Game storage game = games[_gameId];
-        require(block.timestamp < game.roundEndTime, "Round has ended");
-        require(_amount > game.currentBet, "Raise must be higher than current bet");
-        Player storage player = getPlayer(_gameId, msg.sender);
-        require(player.chips >= _amount, "Not enough chips to raise");
+    
 
-        game.pot += _amount;
-        player.chips -= _amount;
-        game.currentBet = _amount;
-        game.lastActionTimestamp = block.timestamp;
-        player.hasActed = true;
-
-        emit PlayerAction(_gameId, msg.sender, "Raise", _amount);
-        nextPlayer(_gameId);
-    }
-
-    function fold(uint256 _gameId) external gameActive(_gameId) onlyParticipating(_gameId)  {
+    function fold(uint256 _gameId) external onlyCurrentPlayer(_gameId) gameActive(_gameId) onlyParticipating(_gameId)  {
         Game storage game = games[_gameId];
         require(block.timestamp < game.roundEndTime, "Round has ended");
         Player storage player = getPlayer(_gameId, msg.sender);
@@ -287,7 +272,7 @@ contract Poker {
             winner.transfer(winnings);
             emit GameEnded(_gameId, winner, winnings);
         } else {
-            emit GameEnded(_gameId, address(0), 0); // No winner (e.g., all folded)
+            emit GameEnded(_gameId, address(0), 0); 
         }
     }
 
