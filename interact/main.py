@@ -22,6 +22,20 @@ class PokerGameFrontend:
         ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'Jack', 'Queen', 'King', 'Ace']
         return {i: f"{ranks[i % 13]} of {suits[i // 13]}" for i in range(52)}
 
+    def get_game_ended_event(self, game_id):
+        game_ended_filter = self.contract.events.GameEnded.create_filter(from_block=0, to_block='latest')
+        for i in range(60):  # Wait up to 60 seconds
+            events = game_ended_filter.get_new_entries()
+            for event in events:
+                if event['args']['gameId'] == game_id:
+                    return event
+            time.sleep(1)
+        return None  
+
+    def get_game_id(self):
+        game_id = self.contract.functions.getLastID().call()
+        return game_id      
+
     def connect_wallet(self):
         st.title("🃏 Blockchain Poker Game")
         
@@ -51,7 +65,7 @@ class PokerGameFrontend:
             #################################################3
             st.write("Game State Details:")
             st.json({
-                "Stage": ["PreFlop", "Flop", "Turn", "River"][game_state[0]],
+                "Stage": ["PreFlop", "Flop", "Turn", "River","End"][game_state[0]],
                 "Current Player": game_state[1],
                 "Pot Size": f"{self.w3.from_wei(game_state[2], 'ether')} ETH",
                 "Players": game_state[3]
@@ -78,8 +92,8 @@ class PokerGameFrontend:
                         'gasPrice': self.w3.to_wei('20', 'gwei')
                     }
                     tx_hash = self.contract.functions.createGame(buy_in_wei).transact(tx_params)
-                    #st.success(f"{tx_hash}")
-                    st.session_state.game_id = st.session_state.game_id
+                    st.success(f"{tx_hash}")
+                    st.session_state.game_id = self.get_game_id()
                     st.success(f"Game Created: ID {st.session_state.game_id}")
                 except Exception as e:
                     st.error(f"Game Creation Failed: {e}")
@@ -185,7 +199,22 @@ class PokerGameFrontend:
                     st.write("Your Cards:", revealed_cards)
                 except Exception as e:
                     st.error(f"Error revealing player cards: {e}")
+            #End game
+            st.subheader("Check End Game State")
+            if st.button("Check State winning"):
+                try:
+                    st.write("\nGame ended\n")
+                    game_ended_event = get_game_ended_event(game_id)
+                    if game_ended_event:
+                        winner = game_ended_event['args']['winner']
+                        winnings = game_ended_event['args']['winningAmount']
+                        st.write(f"Game ended. Winner: {winner}, Winnings: {w3.from_wei(winnings, 'ether')} ETH")
+                    else:
+                        st.write("Game ended event not found")   
+                except Exception as e:
+                    st.error(f"Error revealing player cards: {e}")         
 
+    
     def run(self):
         wallet_connected = self.connect_wallet()
         if wallet_connected:

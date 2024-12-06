@@ -38,8 +38,8 @@
       ]
     },
     "/home/itay601/repos/PokerWeb3/contracts/PokerContract.sol": {
-      "lastModificationDate": 1732726655948,
-      "contentHash": "94d7e8b0bcd251c20eac08f125741e41",
+      "lastModificationDate": 1733479557038,
+      "contentHash": "0995289a2fab6f85c9c86010c02a0f47",
       "sourceName": "contracts/PokerContract.sol",
       "solcConfig": {
         "version": "0.8.27",

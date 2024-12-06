@@ -96,7 +96,7 @@ def reveal_player_cards(game_id, player_account):
     except Exception as e:
         print(f"Error revealing player cards: {e}")
 
-def get_game_ended_event(contract, game_id):
+def get_game_ended_event(game_id):
     game_ended_filter = contract.events.GameEnded.create_filter(from_block=0, to_block='latest')
     for i in range(60):  # Wait up to 60 seconds
         events = game_ended_filter.get_new_entries()
@@ -105,10 +105,16 @@ def get_game_ended_event(contract, game_id):
                 return event
         time.sleep(1)
     return None
+    
+def get_game_id():
+    game_id = contract.functions.getLastID().call()
+    return game_id
+
 
 # Simulate a full game
 def simulate_full_game():
-    game_id = 2
+    game_id = get_game_id()
+    print(game_id)
     buy_in = 1.0 # 1 Ether
 
     # Create and join game
@@ -126,7 +132,7 @@ def simulate_full_game():
         time.sleep(1)
 
     # Simulate betting rounds
-    stages = ["PreFlop", "Flop", "Turn", "River"]
+    stages = ["PreFlop", "Flop", "Turn", "River" ,"End"]
     for stage in stages:
         print(f"\n--- {stage} ---")
         for i, player in enumerate(player_accounts):
@@ -145,7 +151,7 @@ def simulate_full_game():
         time.sleep(1)
 
     print("\nGame ended")
-    game_ended_event = get_game_ended_event(contract, game_id)
+    game_ended_event = get_game_ended_event(game_id)
     if game_ended_event:
         winner = game_ended_event['args']['winner']
         winnings = game_ended_event['args']['winningAmount']

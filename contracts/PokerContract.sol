@@ -88,7 +88,10 @@ contract Poker {
     function getCommunityCards(uint256 _gameId) public view returns (uint8[] memory) {
         return games[_gameId].communityCards;
     }
-
+    function getLastID() public view returns (uint256 ) {
+        return gameCount;
+    }
+    
     function getPlayerCards(uint256 _gameId, address _playerAddress) public view returns (uint8[] memory) {
         Game storage game = games[_gameId];
         for (uint256 i = 0; i < game.players.length; i++) {
@@ -134,6 +137,7 @@ contract Poker {
     }
 
     function startGame(uint256 _gameId) external  {
+	require(msg.sender == games[_gameId].dealer, "Not the dealer");
         Game storage game = games[_gameId];
         require(game.players.length >= 2, "Not enough players to start the game");
         shuffleAndDeal(_gameId);
@@ -145,7 +149,7 @@ contract Poker {
         emit GameStateChanged(_gameId, GameState.PreFlop);
     }
 
-    function bet(uint256 _gameId, uint256 _amount) external onlyCurrentPlayer(_gameId) gameActive(_gameId) onlyParticipating(_gameId) {
+    function bet(uint256 _gameId, uint256 _amount) onlyCurrentPlayer(_gameId) gameActive(_gameId) onlyParticipating(_gameId) external {
         Game storage game = games[_gameId];
         require(block.timestamp < game.roundEndTime, "Round has ended");
         require(_amount > game.currentBet, "Bet must be higher than current bet");
@@ -162,7 +166,7 @@ contract Poker {
         nextPlayer(_gameId);
     }
 
-    function call(uint256 _gameId) external onlyCurrentPlayer(_gameId) gameActive(_gameId) onlyParticipating(_gameId) {
+    function call(uint256 _gameId) onlyCurrentPlayer(_gameId) gameActive(_gameId) onlyParticipating(_gameId) external {
         Game storage game = games[_gameId];
         require(block.timestamp < game.roundEndTime, "Round has ended");
         Player storage player = getPlayer(_gameId, msg.sender);
@@ -180,7 +184,7 @@ contract Poker {
 
     
 
-    function fold(uint256 _gameId) external onlyCurrentPlayer(_gameId) gameActive(_gameId) onlyParticipating(_gameId)  {
+    function fold(uint256 _gameId) onlyCurrentPlayer(_gameId) gameActive(_gameId) onlyParticipating(_gameId) external {
         Game storage game = games[_gameId];
         require(block.timestamp < game.roundEndTime, "Round has ended");
         Player storage player = getPlayer(_gameId, msg.sender);
