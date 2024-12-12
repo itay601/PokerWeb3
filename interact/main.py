@@ -58,21 +58,6 @@ class PokerGameFrontend:
         
         return st.session_state.wallet_connected
 
-    def get_game_state(self, game_id):
-        try:
-            #need to be changed or ADD it
-            game_state = self.contract.functions.getGameState(game_id).call()
-            #################################################3
-            st.write("Game State Details:")
-            st.json({
-                "Stage": ["PreFlop", "Flop", "Turn", "River","End"][game_state[0]],
-                "Current Player": game_state[1],
-                "Pot Size": f"{self.w3.from_wei(game_state[2], 'ether')} ETH",
-                "Players": game_state[3]
-            })
-        except Exception as e:
-            st.error(f"Error fetching game state: {e}")
-
     def game_actions(self, wallet_address):
         st.header("🃏 Poker Game Actions")
         
@@ -94,7 +79,7 @@ class PokerGameFrontend:
                     tx_hash = self.contract.functions.createGame(buy_in_wei).transact(tx_params)
                     st.success(f"{tx_hash}")
                     st.session_state.game_id = self.get_game_id()
-                    st.success(f"Game Created: ID {st.session_state.game_id}")
+                    st.success(f"Game Created: ID {self.get_game_id()}")
                 except Exception as e:
                     st.error(f"Game Creation Failed: {e}")
         
@@ -121,9 +106,7 @@ class PokerGameFrontend:
         if st.session_state.game_id is not None:
             st.header(f"Game #{st.session_state.game_id} Actions")
             
-            # Get Game State
-            if st.button("Get Game State"):
-                self.get_game_state(st.session_state.game_id)
+           
             
             # Start Game
             if st.button("Start Game"):
@@ -204,11 +187,11 @@ class PokerGameFrontend:
             if st.button("Check State winning"):
                 try:
                     st.write("\nGame ended\n")
-                    game_ended_event = get_game_ended_event(game_id)
+                    game_ended_event = self.get_game_ended_event(game_id)
                     if game_ended_event:
                         winner = game_ended_event['args']['winner']
                         winnings = game_ended_event['args']['winningAmount']
-                        st.write(f"Game ended. Winner: {winner}, Winnings: {w3.from_wei(winnings, 'ether')} ETH")
+                        st.write(f"Game ended. Winner: {winner}, Winnings: {self.w3.from_wei(winnings, 'ether')} ETH")
                     else:
                         st.write("Game ended event not found")   
                 except Exception as e:

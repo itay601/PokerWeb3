@@ -81,7 +81,7 @@ contract Poker {
     }
 
     constructor() {
-        gameCount = 0;
+        gameCount = 1;
         locked = false;
     }
     
