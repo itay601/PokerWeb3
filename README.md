@@ -76,9 +76,7 @@ A comprehensive Poker game project integrating Solidity smart contracts with a P
 5. Launch Streamlit application
 
 ## 🤝 Contributing
-Contributions are welcome! Please read our contribution guidelines before submitting pull requests.
-
-## 📝 License
+Contributions are welcome!
 [Specify Your License]
 
 ## 📧 Contact
